@@ -15,7 +15,8 @@ namespace Akka.Signal
         private readonly IActorRef _tcpManager;
         private readonly ILoggingAdapter _log = Context.GetLogger();
 
-        private static readonly Func<IActorRef, string> GetConnectionNameFromActor = actor => $"{ConnecteionPrefix}_{actor.Path.Name}";
+        private static readonly Func<IActorRef, string> GetConnectionNameFromActor =
+            actor => $"{ConnecteionPrefix}_{actor.Path.Name}";
 
         public IStash Stash { get; set; }
 
@@ -49,7 +50,7 @@ namespace Akka.Signal
                 Become(Bound);
             });
 
-            ReceiveAny(o => Stash.Stash());
+            ReceiveAny(_ => Stash.Stash());
 
             _tcpManager.Tell(new Tcp.Bind(Self, _endPoint));
         }
@@ -66,7 +67,7 @@ namespace Akka.Signal
                     child = Context.ActorOf(Props.Create(() => new Hub()), hub.HubName);
                 }
 
-                child.Tell(new Hub.Register(), Sender);
+                child.Forward(new Hub.Register());
             });
 
             Receive<Tcp.Connected>(connected =>
@@ -84,7 +85,7 @@ namespace Akka.Signal
 
                 var con = Context.Child(GetConnectionNameFromActor(Sender));
                 if (!con.Equals(Nobody.Instance))
-                    Context.Stop(con);
+                    con.Forward(HubConnection.Close.Instance);
             });
 
             Receive<Tcp.Write>(write =>

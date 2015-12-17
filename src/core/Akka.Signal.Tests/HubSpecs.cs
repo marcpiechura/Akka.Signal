@@ -24,7 +24,7 @@ namespace Akka.Signal.Tests
         {
             var hub = ActorOfAsTestActorRef<Hub>();
 
-            hub.Tell(new Hub.Connect(TestActor));
+            hub.Tell(new Hub.Join(TestActor));
 
             Assert.AreEqual(TestActor, hub.UnderlyingActor.Clients.First());
         }
@@ -34,7 +34,7 @@ namespace Akka.Signal.Tests
         {
             var hub = ActorOf<Hub>("hub");
 
-            hub.Tell(new Hub.Connect(TestActor));
+            hub.Tell(new Hub.Join(TestActor));
 
             var msg = ExpectMsg<Tcp.Write>();
         }

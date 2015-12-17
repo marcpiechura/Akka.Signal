@@ -32,19 +32,19 @@ namespace Akka.Signal
         {
         }
 
-        public class Connect
+        public class Join
         {
             public string HubName { get; private set; }
 
-            public Connect(string hubName)
+            public Join(string hubName)
             {
                 HubName = hubName;
             }
         }
 
-        public class Connected
+        public class Joined
         {
-            public Connected(string hubName)
+            public Joined(string hubName)
             {
                 HubName = hubName;
             }
@@ -55,6 +55,26 @@ namespace Akka.Signal
         public class NotFound
         {
             public NotFound(string hubName)
+            {
+                HubName = hubName;
+            }
+
+            public string HubName { get; private set; }
+        }
+
+        public class Leave
+        {
+            public Leave(string hubName)
+            {
+                HubName = hubName;
+            }
+
+            public string HubName { get; private set; }
+        }
+
+        public class Broadcast
+        {
+            public Broadcast(string hubName)
             {
                 HubName = hubName;
             }
