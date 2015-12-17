@@ -13,7 +13,7 @@ namespace Akka.Signal.Tests
         private static readonly IPEndPoint TestEndPoint = new IPEndPoint(IPAddress.Any, 1234);
 
         [Test]
-        public void Bind_to_any_address_and_given_port_on_start()
+        public void Bind_to_given_endpoint_on_start()
         {
             var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor));
 
@@ -39,6 +39,7 @@ namespace Akka.Signal.Tests
         public void Start_a_new_hub()
         {
             var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor), "AkkaSignalHub");
+            hub.Tell(new Tcp.Bound(null));
 
             hub.Tell(new HubManager.StartHub("hub"));
             Task.Delay(500).Wait();
@@ -50,6 +51,7 @@ namespace Akka.Signal.Tests
         public void Do_not_start_a_hub_twice()
         {
             var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor), "AkkaSignalHub");
+            hub.Tell(new Tcp.Bound(null));
 
             hub.Tell(new HubManager.StartHub("hub"));
             hub.Tell(new HubManager.StartHub("hub"));
@@ -63,11 +65,47 @@ namespace Akka.Signal.Tests
         {
             IgnoreMessages(o => !(o is Hub.Registered));
             var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor), "AkkaSignalHub");
+            hub.Tell(new Tcp.Bound(null));
 
             hub.Tell(new HubManager.StartHub("hub"), TestActor);
 
             var msg = ExpectMsg<Hub.Registered>();
             Assert.AreEqual("hub", msg.Hub.Path.Name);
         }
+
+        [Test]
+        public void Create_a_new_hub_connection_when_a_client_connect()
+        {
+            IgnoreMessages(o => o is Tcp.Bind);
+            var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor), "AkkaSignalHub");
+            hub.Tell(new Tcp.Bound(null));
+
+            hub.Tell(new Tcp.Connected(null, null), TestActor);
+
+            var msg = ExpectMsg<Tcp.Register>();
+            Assert.AreEqual(hub.Path, msg.Handler.Path.Parent);
+            Assert.AreEqual($"~connection_{TestActor.Path.Name}", msg.Handler.Path.Name);
+            var result = Sys.ActorSelection($"user/AkkaSignalHub/~connection_{TestActor.Path.Name}").ResolveOne(TimeSpan.FromSeconds(3)).Result;
+        }
+
+        [Test]
+        public void Stop_hub_connection_on_closed_connection()
+        {
+            IgnoreMessages(o => !(o is Terminated));
+            var hub = ActorOf(() => new HubManager(TestEndPoint, TestActor), "AkkaSignalHub");
+            hub.Tell(new Tcp.Bound(null));
+            hub.Tell(new Tcp.Connected(null, null), TestActor);
+            Task.Delay(500).Wait();
+            var con = Sys.ActorSelection($"user/AkkaSignalHub/~connection_{TestActor.Path.Name}").ResolveOne(TimeSpan.FromSeconds(1)).Result;
+            Watch(con);
+
+            hub.Tell(new Tcp.ConnectionClosed(), TestActor);
+
+            ExpectTerminated(con);
+        }
+
+        [Test]
+        [ExpectedException(ExpectedException = typeof(InvalidActorNameException), ExpectedMessage = "The name of a hub MUST not start with '~connection'.")]
+        public void Do_not_allow_connection_name_as_hub_name() => new HubManager.StartHub("~connection_hub");
     }
 }

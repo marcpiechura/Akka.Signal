@@ -13,8 +13,7 @@ namespace Akka.Signal
         public Hub()
         {
             Receive<Register>(register => Sender.Tell(new Registered(Self)));
-
-            Receive<Connect>(connect => _clients.TryAdd(connect.Client, out _clients));
+            
         }
 
 
@@ -35,17 +34,27 @@ namespace Akka.Signal
 
         public class Connect
         {
-            public IActorRef Client { get; private set; }
+            public string HubName { get; private set; }
 
-            public Connect(IActorRef client)
+            public Connect(string hubName)
             {
-                Client = client;
+                HubName = hubName;
             }
         }
 
         public class Connected
         {
             public Connected(string hubName)
+            {
+                HubName = hubName;
+            }
+
+            public string HubName { get; private set; }
+        }
+
+        public class NotFound
+        {
+            public NotFound(string hubName)
             {
                 HubName = hubName;
             }

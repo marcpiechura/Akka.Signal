@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="Client.cs" />
     <Compile Include="Hub.cs" />
+    <Compile Include="HubConnection.cs" />
     <Compile Include="HubExtension.cs" />
     <Compile Include="HubManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
