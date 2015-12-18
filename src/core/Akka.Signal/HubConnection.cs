@@ -1,4 +1,5 @@
 ﻿using Akka.Actor;
+using Akka.Event;
 using Akka.IO;
 using Akka.Util.Internal.Collections;
 
@@ -7,8 +8,9 @@ namespace Akka.Signal
     public class HubConnection : ReceiveActor
     {
         private readonly IUntypedActorContext _parentContext;
-        private IImmutableMap<string, IActorRef> _hubs = ImmutableTreeMap<string, IActorRef>.Empty; 
+        private IImmutableMap<string, IActorRef> _hubs = ImmutableTreeMap<string, IActorRef>.Empty;
 
+        private readonly ILoggingAdapter _log = Context.GetLogger();
         private readonly Serialization.Serializer _serializer =
             Context.System.Serialization.FindSerializerForType(typeof(object));
 
@@ -22,9 +24,23 @@ namespace Akka.Signal
                 Self.Forward(message);
             });
 
+            Receive<Tcp.ConnectionClosed>(closed =>
+            {
+                _log.Info($"Client connection {Self.Path.Name} was closed. Reason: {closed.GetErrorCause()}");
+
+                foreach (var hubPair in _hubs.AllMinToMax)
+                {
+                    var name = hubPair.Key;
+                    var hub = hubPair.Value;
+
+                    hub.Forward(new Hub.Leave(name));
+                }
+
+                Context.Stop(Self);
+            });
+
             Receive<Hub.Join>(join =>
             {
-                //If client is already connected to this hub
                 if (_hubs.Contains(join.HubName))
                     return;
 
@@ -41,7 +57,6 @@ namespace Akka.Signal
 
             Receive<Hub.Leave>(leave =>
             {
-                //If client already left this hub
                 if (!_hubs.Contains(leave.HubName))
                     return;
 
@@ -67,28 +82,8 @@ namespace Akka.Signal
 
                 hub.Forward(broadcast);
             });
-
-            Receive<Close>(_ =>
-            {
-                foreach (var hubPair in _hubs.AllMinToMax)
-                {
-                    var name = hubPair.Key;
-                    var hub = hubPair.Value;
-
-                    hub.Forward(new Hub.Leave(name));
-                }
-
-                Context.Stop(Self);
-            });
         }
 
         private Tcp.Write WriteObject(object value) => Tcp.Write.Create(ByteString.Create(_serializer.ToBinary(value)));
-
-        internal class Close
-        {
-            public static readonly Close Instance = new Close();
-
-            private Close() { }
-        }
     }
 }

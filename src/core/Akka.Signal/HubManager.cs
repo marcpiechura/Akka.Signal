@@ -61,13 +61,15 @@ namespace Akka.Signal
             {
                 var child = Context.Child(hub.HubName);
 
-                if (child.IsNobody())
+                if (!child.IsNobody())
                 {
-                    _log.Info($"New hub {hub.HubName} created");
-                    child = Context.ActorOf(Props.Create(() => new Hub()), hub.HubName);
+                    Sender.Tell(new HubAlreadyExists(hub.HubName));
+                    return;
                 }
 
-                child.Forward(new Hub.Register());
+                _log.Info($"Hub {hub.HubName} created");
+                var newHub = Context.ActorOf(Props.Create(() => new Hub(Sender)), hub.HubName);
+                Sender.Tell(new HubStarted(newHub));
             });
 
             Receive<Tcp.Connected>(connected =>
@@ -79,25 +81,28 @@ namespace Akka.Signal
                 Sender.Tell(new Tcp.Register(hubConncetion));
             });
 
-            Receive<Tcp.ConnectionClosed>(closed =>
-            {
-                _log.Info($"Client connection {Sender.Path.Name} was closed. Reason: {closed.GetErrorCause()}");
-
-                var con = Context.Child(GetConnectionNameFromActor(Sender));
-                if (!con.Equals(Nobody.Instance))
-                    con.Forward(HubConnection.Close.Instance);
-            });
-
-            Receive<Tcp.Write>(write =>
+            Receive<Tcp.Received>(received =>
             {
                 var hubConnection = Context.Child(GetConnectionNameFromActor(Sender));
                 if (hubConnection.IsNobody())
                     return;
                 
-                hubConnection.Forward(write);
+                hubConnection.Forward(received);
             });
 
+            ReceiveAny(o => Console.WriteLine("Any: " + o));
+
             Stash.UnstashAll();
+        }
+
+        private class HubAlreadyExists
+        {
+            public HubAlreadyExists(string hubName)
+            {
+                HubName = hubName;
+            }
+
+            public string HubName { get; private set; }
         }
 
         public class StartHub
@@ -113,5 +118,14 @@ namespace Akka.Signal
             public string HubName { get; private set; }
         }
 
+        public class HubStarted
+        {
+            public HubStarted(IActorRef hub)
+            {
+                Hub = hub;
+            }
+
+            public IActorRef Hub { get; private set; }
+        }
     }
 }

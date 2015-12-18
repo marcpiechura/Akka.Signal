@@ -1,4 +1,5 @@
-﻿using Akka.Actor;
+﻿using System;
+using Akka.Actor;
 using Akka.Signal;
 
 namespace Server
@@ -10,7 +11,9 @@ namespace Server
             using (var sys = ActorSystem.Create("Server"))
             {
                 var hub = sys.Hub(5678);
-                var producer = sys.ActorOf(Props.Create(() => new Producer(hub)));
+                var producer = sys.ActorOf(Props.Create(() => new Producer()));
+
+                hub.Tell(new HubManager.StartHub("Test"), producer);
 
                 sys.AwaitTermination();
             }
@@ -21,12 +24,14 @@ namespace Server
     class Producer : ReceiveActor
     {
         private int _counter;
+        private IActorRef _hub;
 
-        public Producer(IActorRef hub)
+        public Producer()
         {
             Context.System.Scheduler.ScheduleTellRepeatedly(1000, 1000, Self, "", Nobody.Instance);
 
-            //ReceiveAny(_ => hub.Tell(new Hub.Broadcast(++_counter)));
+            Receive<HubManager.HubStarted>(started => _hub = started.Hub);
+            Receive<string>(_ => _hub.Tell(DateTime.Now.ToLongTimeString()));
         }
     }
 }

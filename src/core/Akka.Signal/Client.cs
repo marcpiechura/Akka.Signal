@@ -56,6 +56,7 @@ namespace Akka.Signal
         private Receive Connected(IActorRef connection)
         {
             connection.Tell(new Tcp.Register(Self));
+            connection.Tell(Tcp.Write.Create(ByteString.Create(_messageSerializer.ToBinary(new Hub.Join("Test")))));
 
             return message =>
             {
@@ -66,14 +67,7 @@ namespace Akka.Signal
                     TellRecipients(m);
                     return true;
                 }
-
-                var connected = message as Tcp.Connected;
-                if (connected != null)
-                {
-                    Become(Connected(Sender));
-                    return true;
-                }
-
+                
                 var closed = message as Tcp.ConnectionClosed;
                 if (closed != null)
                 {

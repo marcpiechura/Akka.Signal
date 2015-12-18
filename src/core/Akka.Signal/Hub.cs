@@ -1,36 +1,54 @@
-﻿using System.Collections.Generic;
-using Akka.Actor;
+﻿using Akka.Actor;
+using Akka.IO;
 using Akka.Util.Internal.Collections;
 
 namespace Akka.Signal
 {
     public class Hub : ReceiveActor
     {
-        private ImmutableTreeSet<IActorRef> _clients = ImmutableTreeSet<IActorRef>.Empty;
+        private readonly Serialization.Serializer _serializer =
+            Context.System.Serialization.FindSerializerForType(typeof(object));
 
-        public IEnumerable<IActorRef> Clients => _clients;
+        private readonly IActorRef _handler;
+        private IImmutableSet<IActorRef> _clients = ImmutableTreeSet<IActorRef>.Empty;
 
-        public Hub()
+        public Hub(IActorRef handler)
         {
-            Receive<Register>(register => Sender.Tell(new Registered(Self)));
-            
-        }
+            _handler = handler;
 
-
-
-        public class Registered
-        {
-            public Registered(IActorRef hub)
+            Receive<Join>(join =>
             {
-                Hub = hub;
-            }
+                if (!_clients.TryAdd(Sender, out _clients))
+                    return;
 
-            public IActorRef Hub { get; private set; }
+                var joined = new Joined(Sender);
+                Self.Tell(new Broadcast("self", joined));
+
+                _handler.Tell(joined);
+            });
+
+            Receive<Leave>(leave =>
+            {
+                if (!_clients.TryRemove(Sender, out _clients))
+                    return;
+
+                var left = new Left(Sender);
+                Self.Tell(new Broadcast("self", left));
+
+                _handler.Tell(left);
+            });
+
+            Receive<Broadcast>(broadcast =>
+            {
+                var message = WriteObject(broadcast.Message);
+                foreach (var client in _clients)
+                    client.Tell(message);
+            });
+
+            ReceiveAny(o => Self.Forward(new Broadcast("self", o)));
         }
 
-        public class Register
-        {
-        }
+        private Tcp.Write WriteObject(object value) => Tcp.Write.Create(ByteString.Create(_serializer.ToBinary(value)));
 
         public class Join
         {
@@ -44,12 +62,12 @@ namespace Akka.Signal
 
         public class Joined
         {
-            public Joined(string hubName)
+            public Joined(IActorRef client)
             {
-                HubName = hubName;
+                Client = client;
             }
 
-            public string HubName { get; private set; }
+            public IActorRef Client { get; private set; }
         }
 
         public class NotFound
@@ -72,14 +90,26 @@ namespace Akka.Signal
             public string HubName { get; private set; }
         }
 
+        public class Left
+        {
+            public Left(IActorRef client)
+            {
+                Client = client;
+            }
+
+            public IActorRef Client { get; private set; }
+        }
+
         public class Broadcast
         {
-            public Broadcast(string hubName)
+            public Broadcast(string hubName, object message)
             {
                 HubName = hubName;
+                Message = message;
             }
 
             public string HubName { get; private set; }
+            public object Message { get; private set; }
         }
     }
 }
