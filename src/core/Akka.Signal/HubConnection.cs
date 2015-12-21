@@ -11,8 +11,6 @@ namespace Akka.Signal
         private IImmutableMap<string, IActorRef> _hubs = ImmutableTreeMap<string, IActorRef>.Empty;
 
         private readonly ILoggingAdapter _log = Context.GetLogger();
-        private readonly Serialization.Serializer _serializer =
-            Context.System.Serialization.FindSerializerForType(typeof(object));
 
         public HubConnection(IUntypedActorContext parentContext)
         {
@@ -20,8 +18,8 @@ namespace Akka.Signal
             
             Receive<Tcp.Received>(received =>
             {
-                var message = _serializer.FromBinary(received.Data.ToArray(), typeof (object));
-                Self.Forward(message);
+                var messages = MessageSeriliazer.Deseriliaze(Context.System, received.Data);
+                messages.ForEach(Self.Forward);
             });
 
             Receive<Tcp.ConnectionClosed>(closed =>
@@ -84,6 +82,6 @@ namespace Akka.Signal
             });
         }
 
-        private Tcp.Write WriteObject(object value) => Tcp.Write.Create(ByteString.Create(_serializer.ToBinary(value)));
+        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, value));
     }
 }

@@ -10,10 +10,13 @@ namespace Client
         {
             using (var sys = ActorSystem.Create("Client"))
             {
-                var client = sys.ActorOf(Props.Create(() => new HubClient("localhost", 5678)));
                 var console = sys.ActorOf(Props.Create(() => new ConsoleActor()));
-                client.Tell(new Register(console));
+                for (int i = 0; i < 100; i++)
+                {
+                    var client = sys.ActorOf(Props.Create(() => new HubClient("localhost", 5678)));
+                    client.Tell(new Register(console));
 
+                }
                 sys.AwaitTermination();
             }
         }

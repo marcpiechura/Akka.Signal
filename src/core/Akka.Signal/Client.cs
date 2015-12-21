@@ -9,9 +9,6 @@ namespace Akka.Signal
 {
     public class HubClient : ReceiveActor
     {
-        private readonly Serialization.Serializer _messageSerializer =
-            Context.System.Serialization.FindSerializerForType(typeof(object));
-
         private readonly HashSet<IActorRef> _reciepients = new HashSet<IActorRef>();
         private readonly EndPoint _endPoint;
 
@@ -56,15 +53,15 @@ namespace Akka.Signal
         private Receive Connected(IActorRef connection)
         {
             connection.Tell(new Tcp.Register(Self));
-            connection.Tell(Tcp.Write.Create(ByteString.Create(_messageSerializer.ToBinary(new Hub.Join("Test")))));
+            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, new Hub.Join("Test"))));
 
             return message =>
             {
                 var received = message as Tcp.Received;
                 if (received != null)
                 {
-                    var m = _messageSerializer.FromBinary(received.Data.ToArray(), typeof(object));
-                    TellRecipients(m);
+                    var messages = MessageSeriliazer.Deseriliaze(Context.System, received.Data);
+                    messages.ForEach(TellRecipients);
                     return true;
                 }
                 

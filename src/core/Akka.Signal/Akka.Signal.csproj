@@ -45,6 +45,7 @@
     <Compile Include="HubConnection.cs" />
     <Compile Include="HubExtension.cs" />
     <Compile Include="HubManager.cs" />
+    <Compile Include="MessageSeriliazer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

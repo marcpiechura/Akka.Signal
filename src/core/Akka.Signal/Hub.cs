@@ -6,9 +6,6 @@ namespace Akka.Signal
 {
     public class Hub : ReceiveActor
     {
-        private readonly Serialization.Serializer _serializer =
-            Context.System.Serialization.FindSerializerForType(typeof(object));
-
         private readonly IActorRef _handler;
         private IImmutableSet<IActorRef> _clients = ImmutableTreeSet<IActorRef>.Empty;
 
@@ -48,7 +45,7 @@ namespace Akka.Signal
             ReceiveAny(o => Self.Forward(new Broadcast("self", o)));
         }
 
-        private Tcp.Write WriteObject(object value) => Tcp.Write.Create(ByteString.Create(_serializer.ToBinary(value)));
+        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, value));
 
         public class Join
         {
