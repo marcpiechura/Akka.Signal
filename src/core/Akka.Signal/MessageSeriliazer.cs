@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Akka.Actor;
 using Akka.IO;
@@ -8,31 +9,34 @@ namespace Akka.Signal
 {
     public static class MessageSeriliazer
     {
-        public static ByteString Seriliaze(ActorSystem system, object message)
+        private const int SeriliazerIdBytesCount = 4;
+        private const int MessageLengthBytesCount = 4;
+        private const int CompletePrefixBytesCount = SeriliazerIdBytesCount + MessageLengthBytesCount;
+
+        public static ByteString Serialize(ActorSystem system, object message)
         {
             var seriliazer = system.Serialization.FindSerializerFor(message);
-            var seriliazerIdBytes = ByteString.FromString(seriliazer.Identifier.ToString());
-            var result = ByteString.Create(new[] {Convert.ToByte(seriliazerIdBytes.Count)});
-            result = result.Concat(seriliazerIdBytes.Concat(ByteString.Create(seriliazer.ToBinary(message))));
+            var messageBytes = ByteString.Create(seriliazer.ToBinary(message));
+            var messageLength = ByteString.Create(BitConverter.GetBytes(messageBytes.Count));
+            var seriliazerId = ByteString.Create(BitConverter.GetBytes(seriliazer.Identifier));
 
-            return result.Concat(ByteString.Create(new[] {Byte.MinValue}));
+            return seriliazerId.Concat(messageLength.Concat(messageBytes));
         }
 
-        public static List<object> Deseriliaze(ActorSystem system, ByteString message)
+        public static List<object> Deserialize(ActorSystem system, ByteString message)
         {
             var result = new List<object>();
 
-            while (message.Contains(Byte.MinValue) && message.Count > 1)
+            while (!message.IsEmpty)
             {
-                var splittedMessage = message.SplitAt(message.IndexOf(Byte.MinValue));
-                var currentMessage = splittedMessage.Item1;
-                message = splittedMessage.Item2.Drop(1);
-
-                var seriliazerIdLength = Convert.ToInt32(currentMessage.Head);
-                var seriliazerId = Int32.Parse(currentMessage.Drop(1).Take(seriliazerIdLength).DecodeString());
+                var seriliazerId = BitConverter.ToInt32(message.Take(SeriliazerIdBytesCount).ToArray(), 0);
+                var messageLength = BitConverter.ToInt32(message.Skip(SeriliazerIdBytesCount).Take(MessageLengthBytesCount).ToArray(), 0);
+                var messageBytes = message.Skip(CompletePrefixBytesCount).Take(messageLength).ToArray();
                 var seriliazer = system.Serialization.GetSerializerById(seriliazerId);
-                currentMessage = currentMessage.Drop(1 + seriliazerIdLength);
-                result.Add(seriliazer.FromBinary(currentMessage.ToArray(), typeof(object)));
+
+                result.Add(seriliazer.FromBinary(messageBytes, typeof(object)));
+
+                message = message.Drop(CompletePrefixBytesCount + messageLength);
             }
 
             return result;

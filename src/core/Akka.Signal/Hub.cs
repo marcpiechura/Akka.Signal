@@ -45,7 +45,7 @@ namespace Akka.Signal
             ReceiveAny(o => Self.Forward(new Broadcast("self", o)));
         }
 
-        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, value));
+        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, value));
 
         public class Join
         {

@@ -53,14 +53,14 @@ namespace Akka.Signal
         private Receive Connected(IActorRef connection)
         {
             connection.Tell(new Tcp.Register(Self));
-            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, new Hub.Join("Test"))));
+            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, new Hub.Join("Test"))));
 
             return message =>
             {
                 var received = message as Tcp.Received;
                 if (received != null)
                 {
-                    var messages = MessageSeriliazer.Deseriliaze(Context.System, received.Data);
+                    var messages = MessageSeriliazer.Deserialize(Context.System, received.Data);
                     messages.ForEach(TellRecipients);
                     return true;
                 }

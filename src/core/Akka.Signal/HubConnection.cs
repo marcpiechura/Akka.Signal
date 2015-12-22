@@ -18,7 +18,7 @@ namespace Akka.Signal
             
             Receive<Tcp.Received>(received =>
             {
-                var messages = MessageSeriliazer.Deseriliaze(Context.System, received.Data);
+                var messages = MessageSeriliazer.Deserialize(Context.System, received.Data);
                 messages.ForEach(Self.Forward);
             });
 
@@ -82,6 +82,6 @@ namespace Akka.Signal
             });
         }
 
-        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Seriliaze(Context.System, value));
+        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, value));
     }
 }
