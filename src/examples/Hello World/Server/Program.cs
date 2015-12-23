@@ -1,5 +1,6 @@
 ﻿using System;
 using Akka.Actor;
+using Akka.IO;
 using Akka.Signal;
 
 namespace Server
@@ -10,10 +11,10 @@ namespace Server
         {
             using (var sys = ActorSystem.Create("Server"))
             {
-                var hub = sys.Hub(5678);
-                var producer = sys.ActorOf(Props.Create(() => new Producer()));
+                sys.SignalHub().Tell(new HubManager.Bind(5678));
 
-                hub.Tell(new HubManager.StartHub("Test"), producer);
+                var producer = sys.ActorOf(Props.Create(() => new Producer()));
+                sys.SignalHub().Tell(new HubManager.StartHub("Test"), producer);
 
                 sys.AwaitTermination();
             }

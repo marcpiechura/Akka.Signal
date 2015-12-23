@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using Akka.Actor;
 using Akka.IO;
@@ -9,12 +7,15 @@ namespace Akka.Signal
 {
     public class HubClient : ReceiveActor
     {
-        private readonly HashSet<IActorRef> _reciepients = new HashSet<IActorRef>();
         private readonly EndPoint _endPoint;
+        private readonly IActorRef _handler;
+        private readonly string _hub;
 
-        public HubClient(string host, int port)
+        public HubClient(EndPoint endPoint, IActorRef handler, string hub)
         {
-            _endPoint = new DnsEndPoint(host, port);
+            _endPoint = endPoint;
+            _handler = handler;
+            _hub = hub;
             Become(Connecting());
         }
 
@@ -27,7 +28,7 @@ namespace Akka.Signal
                 var connected = message as Tcp.Connected;
                 if (connected != null)
                 {
-                    TellRecipients(new Connected());
+                    _handler.Tell(new Connected());
                     Become(Connected(Sender));
                     return true;
                 }
@@ -39,13 +40,6 @@ namespace Akka.Signal
                     return true;
                 }
 
-                var register = message as Register;
-                if (register != null)
-                {
-                    _reciepients.Add(register.Reciepient);
-                    return true;
-                }
-
                 return false;
             };
         }
@@ -53,7 +47,7 @@ namespace Akka.Signal
         private Receive Connected(IActorRef connection)
         {
             connection.Tell(new Tcp.Register(Self));
-            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, new Hub.Join("Test"))));
+            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, new Hub.Join(_hub))));
 
             return message =>
             {
@@ -61,22 +55,15 @@ namespace Akka.Signal
                 if (received != null)
                 {
                     var messages = MessageSeriliazer.Deserialize(Context.System, received.Data);
-                    messages.ForEach(TellRecipients);
+                    messages.ForEach(_handler.Tell);
                     return true;
                 }
                 
                 var closed = message as Tcp.ConnectionClosed;
                 if (closed != null)
                 {
-                    TellRecipients(new Disconnected());
+                    _handler.Tell(new Disconnected());
                     Become(Reconnecting());
-                    return true;
-                }
-
-                var register = message as Register;
-                if (register != null)
-                {
-                    _reciepients.Add(register.Reciepient);
                     return true;
                 }
 
@@ -93,7 +80,7 @@ namespace Akka.Signal
                 var connected = message as Tcp.Connected;
                 if (connected != null)
                 {
-                    TellRecipients(new Reconnected());
+                    _handler.Tell(new Reconnected());
                     Become(Connected(Sender));
                     return true;
                 }
@@ -102,13 +89,6 @@ namespace Akka.Signal
                 if (failed?.Cmd is Tcp.Connect)
                 {
                     Connect(_endPoint, true);
-                    return true;
-                }
-
-                var register = message as Register;
-                if (register != null)
-                {
-                    _reciepients.Add(register.Reciepient);
                     return true;
                 }
 
@@ -126,13 +106,7 @@ namespace Akka.Signal
             if(reconnecting)
                 message = new Reconnecting();
 
-            TellRecipients(message);
-        }
-
-        private void TellRecipients(object message)
-        {
-            foreach (var reciepient in _reciepients.AsParallel())
-                reciepient.Tell(message);
+            _handler.Tell(message);
         }
     }
 
@@ -154,15 +128,5 @@ namespace Akka.Signal
 
     public class Reconnecting 
     {
-    }
-
-    public class Register
-    {
-        public Register(IActorRef reciepient)
-        {
-            Reciepient = reciepient;
-        }
-
-        public IActorRef Reciepient { get; private set; }
     }
 }

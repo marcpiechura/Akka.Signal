@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using Akka.Actor;
 using Akka.Signal;
 
@@ -10,13 +11,12 @@ namespace Client
         {
             using (var sys = ActorSystem.Create("Client"))
             {
+                sys.SignalClient().Tell(new ClientManager.Bind(new DnsEndPoint("localhost", 5678)));
                 var console = sys.ActorOf(Props.Create(() => new ConsoleActor()));
-                for (int i = 0; i < 100; i++)
-                {
-                    var client = sys.ActorOf(Props.Create(() => new HubClient("localhost", 5678)));
-                    client.Tell(new Register(console));
 
-                }
+                for (int i = 0; i < 5; i++)
+                    sys.SignalClient().Tell(new ClientManager.RegisterClient("aaaa"), console);
+
                 sys.AwaitTermination();
             }
         }

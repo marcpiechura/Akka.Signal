@@ -10,9 +10,7 @@ namespace Akka.Signal
     {
         public const string Name = "AkkaSignalHub";
         private const string ConnecteionPrefix = "~connection";
-
-        private readonly EndPoint _endPoint;
-        private readonly IActorRef _tcpManager;
+        
         private readonly ILoggingAdapter _log = Context.GetLogger();
 
         private static readonly Func<IActorRef, string> GetConnectionNameFromActor =
@@ -20,42 +18,43 @@ namespace Akka.Signal
 
         public IStash Stash { get; set; }
 
-        public HubManager(int port) : this(new IPEndPoint(IPAddress.Any, port))
+        public HubManager()
         {
-        }
-
-        public HubManager(EndPoint endPoint) : this(endPoint, Context.System.Tcp())
-        {
-        }
-
-        public HubManager(EndPoint endPoint, IActorRef tcpManager)
-        {
-            _endPoint = endPoint;
-            _tcpManager = tcpManager;
-
-            Become(Binding);
-        }
-
-        private void Binding()
-        {
-            Receive<Tcp.CommandFailed>(failed => failed.Cmd is Tcp.Bind, failed =>
-            {
-                _log.Error($"Could not bind to endpoint {_endPoint}. Reason: {failed.Cmd.FailureMessage}");
-                Context.Stop(Self);
-            });
-
-            Receive<Tcp.Bound>(bound =>
-            {
-                _log.Info($"Listening on {bound.LocalAddress}");
-                Become(Bound);
-            });
-
+            Receive<Bind>(bind => Become(Binding(bind.EndPoint, Sender)));
             ReceiveAny(_ => Stash.Stash());
-
-            _tcpManager.Tell(new Tcp.Bind(Self, _endPoint));
         }
 
-        private void Bound()
+        private Receive Binding(EndPoint endPoint, IActorRef sender)
+        {
+            Context.System.Tcp().Tell(new Tcp.Bind(Self, endPoint));
+
+            return message =>
+            {
+                var failed = message as Tcp.CommandFailed;
+                if (failed != null)
+                {
+                    _log.Error($"Could not bind to endpoint {endPoint}. Reason: {failed.Cmd.FailureMessage}");
+                    sender.Tell(new BindingFailed(endPoint, failed.Cmd.FailureMessage.ToString()));
+                    Context.Stop(Self);
+                    return true;
+                }
+
+                var bound = message as Tcp.Bound;
+                if (bound != null)
+                {
+                    _log.Info($"Listening on {bound.LocalAddress}");
+                    sender.Tell(new Bound(endPoint));
+                    Become(Bounded);
+                    return true;
+                }
+
+                Stash.Stash();
+                return true;
+            };
+
+        }
+
+        private void Bounded()
         {
             Receive<StartHub>(hub =>
             {
@@ -63,7 +62,7 @@ namespace Akka.Signal
 
                 if (!child.IsNobody())
                 {
-                    Sender.Tell(new HubAlreadyExists(hub.HubName));
+                    Sender.Tell(new HubAlreadyExists(hub.HubName, child));
                     return;
                 }
 
@@ -90,19 +89,7 @@ namespace Akka.Signal
                 hubConnection.Forward(received);
             });
 
-            ReceiveAny(o => Console.WriteLine("Any: " + o));
-
             Stash.UnstashAll();
-        }
-
-        private class HubAlreadyExists
-        {
-            public HubAlreadyExists(string hubName)
-            {
-                HubName = hubName;
-            }
-
-            public string HubName { get; private set; }
         }
 
         public class StartHub
@@ -126,6 +113,56 @@ namespace Akka.Signal
             }
 
             public IActorRef Hub { get; private set; }
+        }
+
+        private class HubAlreadyExists
+        {
+            public HubAlreadyExists(string name, IActorRef hub)
+            {
+                Name = name;
+                Hub = hub;
+            }
+
+            public string Name { get; private set; }
+
+            public IActorRef Hub { get; private set; }
+        }
+
+        public class Bind
+        {
+            public Bind(int port) : this(new IPEndPoint(IPAddress.Any, port))
+            {
+            }
+
+            public Bind(EndPoint endPoint)
+            {
+                EndPoint = endPoint;
+            }
+
+            public EndPoint EndPoint { get; private set; }
+        }
+
+        public class Bound
+        {
+            public Bound(EndPoint endPoint)
+            {
+                EndPoint = endPoint;
+            }
+
+            public EndPoint EndPoint { get; private set; }
+        }
+
+        public class BindingFailed
+        {
+            public BindingFailed(EndPoint endPoint, string reason)
+            {
+                EndPoint = endPoint;
+                Reason = reason;
+            }
+
+            public EndPoint EndPoint { get; private set; }
+
+            public string Reason { get; private set; }
         }
     }
 }

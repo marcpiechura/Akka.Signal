@@ -41,6 +41,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Client.cs" />
+    <Compile Include="ClientExtension.cs" />
+    <Compile Include="ClientManager.cs" />
     <Compile Include="Hub.cs" />
     <Compile Include="HubConnection.cs" />
     <Compile Include="HubExtension.cs" />
