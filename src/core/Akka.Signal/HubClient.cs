@@ -28,7 +28,7 @@ namespace Akka.Signal
                 var connected = message as Tcp.Connected;
                 if (connected != null)
                 {
-                    _handler.Tell(new Connected());
+                    _handler.Tell(new Signal.Connected());
                     Become(Connected(Sender));
                     return true;
                 }
@@ -47,7 +47,7 @@ namespace Akka.Signal
         private Receive Connected(IActorRef connection)
         {
             connection.Tell(new Tcp.Register(Self));
-            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, new Hub.Join(_hub))));
+            connection.Tell(Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, new Signal.Join(_hub))));
 
             return message =>
             {
@@ -62,7 +62,7 @@ namespace Akka.Signal
                 var closed = message as Tcp.ConnectionClosed;
                 if (closed != null)
                 {
-                    _handler.Tell(new Disconnected());
+                    _handler.Tell(new Signal.Disconnected());
                     Become(Reconnecting());
                     return true;
                 }
@@ -80,7 +80,7 @@ namespace Akka.Signal
                 var connected = message as Tcp.Connected;
                 if (connected != null)
                 {
-                    _handler.Tell(new Reconnected());
+                    _handler.Tell(new Signal.Reconnected());
                     Become(Connected(Sender));
                     return true;
                 }
@@ -102,31 +102,11 @@ namespace Akka.Signal
         {
             Context.System.Tcp().Tell(new Tcp.Connect(endPoint, null, null, TimeSpan.FromSeconds(3)));
 
-            object message = new Connecting();
+            object message = new Signal.Connecting();
             if(reconnecting)
-                message = new Reconnecting();
+                message = new Signal.Reconnecting();
 
             _handler.Tell(message);
         }
-    }
-
-    public class Connected
-    {
-    }
-
-    public class Reconnected
-    {
-    }
-
-    public class Disconnected
-    {
-    }
-
-    public class Connecting
-    {
-    }
-
-    public class Reconnecting 
-    {
     }
 }

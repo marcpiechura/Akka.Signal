@@ -9,7 +9,7 @@ namespace Akka.Signal
     public sealed class HubManager : ReceiveActor, IWithUnboundedStash
     {
         public const string Name = "AkkaSignalHub";
-        private const string ConnecteionPrefix = "~connection";
+        public const string ConnecteionPrefix = "~connection";
         
         private readonly ILoggingAdapter _log = Context.GetLogger();
 
@@ -20,7 +20,7 @@ namespace Akka.Signal
 
         public HubManager()
         {
-            Receive<Bind>(bind => Become(Binding(bind.EndPoint, Sender)));
+            Receive<Signal.Bind>(bind => Become(Binding(bind.EndPoint, Sender)));
             ReceiveAny(_ => Stash.Stash());
         }
 
@@ -34,7 +34,7 @@ namespace Akka.Signal
                 if (failed != null)
                 {
                     _log.Error($"Could not bind to endpoint {endPoint}. Reason: {failed.Cmd.FailureMessage}");
-                    sender.Tell(new BindingFailed(endPoint, failed.Cmd.FailureMessage.ToString()));
+                    sender.Tell(new Signal.BindingFailed(endPoint, failed.Cmd.FailureMessage.ToString()));
                     Context.Stop(Self);
                     return true;
                 }
@@ -43,8 +43,8 @@ namespace Akka.Signal
                 if (bound != null)
                 {
                     _log.Info($"Listening on {bound.LocalAddress}");
-                    sender.Tell(new Bound(endPoint));
-                    Become(Bounded);
+                    sender.Tell(new Signal.Bound(endPoint));
+                    Become(Bound);
                     return true;
                 }
 
@@ -54,21 +54,21 @@ namespace Akka.Signal
 
         }
 
-        private void Bounded()
+        private void Bound()
         {
-            Receive<StartHub>(hub =>
+            Receive<Signal.StartHub>(hub =>
             {
                 var child = Context.Child(hub.HubName);
 
                 if (!child.IsNobody())
                 {
-                    Sender.Tell(new HubAlreadyExists(hub.HubName, child));
+                    Sender.Tell(new Signal.HubAlreadyExists(hub.HubName, child));
                     return;
                 }
 
                 _log.Info($"Hub {hub.HubName} created");
                 var newHub = Context.ActorOf(Props.Create(() => new Hub(Sender)), hub.HubName);
-                Sender.Tell(new HubStarted(newHub));
+                Sender.Tell(new Signal.HubStarted(newHub));
             });
 
             Receive<Tcp.Connected>(connected =>
@@ -92,77 +92,6 @@ namespace Akka.Signal
             Stash.UnstashAll();
         }
 
-        public class StartHub
-        {
-            public StartHub(string hubName)
-            {
-                if(hubName.StartsWith(ConnecteionPrefix))
-                    throw new InvalidActorNameException("The name of a hub MUST not start with '~connection'.");
 
-                HubName = hubName;
-            }
-
-            public string HubName { get; private set; }
-        }
-
-        public class HubStarted
-        {
-            public HubStarted(IActorRef hub)
-            {
-                Hub = hub;
-            }
-
-            public IActorRef Hub { get; private set; }
-        }
-
-        private class HubAlreadyExists
-        {
-            public HubAlreadyExists(string name, IActorRef hub)
-            {
-                Name = name;
-                Hub = hub;
-            }
-
-            public string Name { get; private set; }
-
-            public IActorRef Hub { get; private set; }
-        }
-
-        public class Bind
-        {
-            public Bind(int port) : this(new IPEndPoint(IPAddress.Any, port))
-            {
-            }
-
-            public Bind(EndPoint endPoint)
-            {
-                EndPoint = endPoint;
-            }
-
-            public EndPoint EndPoint { get; private set; }
-        }
-
-        public class Bound
-        {
-            public Bound(EndPoint endPoint)
-            {
-                EndPoint = endPoint;
-            }
-
-            public EndPoint EndPoint { get; private set; }
-        }
-
-        public class BindingFailed
-        {
-            public BindingFailed(EndPoint endPoint, string reason)
-            {
-                EndPoint = endPoint;
-                Reason = reason;
-            }
-
-            public EndPoint EndPoint { get; private set; }
-
-            public string Reason { get; private set; }
-        }
     }
 }
