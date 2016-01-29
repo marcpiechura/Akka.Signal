@@ -13,7 +13,7 @@ namespace Akka.Signal
 
         public ClientManager()
         {
-            Receive<Bind>(bind =>
+            Receive<Signal.Bind>(bind =>
             {
                 _endPoint = bind.EndPoint;
                 Become(Bound);
@@ -23,46 +23,13 @@ namespace Akka.Signal
 
         private void Bound()
         {
-            Receive<RegisterClient>(registerClient =>
+            Receive<Signal.RegisterClient>(registerClient =>
             {
                 var newClient = Context.ActorOf(Props.Create(() => new HubClient(_endPoint, Sender, registerClient.Hub)));
-                Sender.Tell(new ClientRegistered(newClient, registerClient.Hub));
+                Sender.Tell(new Signal.ClientRegistered(newClient, registerClient.Hub));
             });
 
             Stash.UnstashAll();
-        }
-
-        public class Bind
-        {
-            public Bind(EndPoint endPoint)
-            {
-                EndPoint = endPoint;
-            }
-
-            public EndPoint EndPoint { get; private set; }
-        }
-        
-        public class RegisterClient
-        {
-            public RegisterClient(string hub)
-            {
-                Hub = hub;
-            }
-
-            public string Hub { get; private set; }
-        }
-
-        public class ClientRegistered
-        {
-            public ClientRegistered(IActorRef client, string hub)
-            {
-                Client = client;
-                Hub = hub;
-            }
-
-            public IActorRef Client { get; private set; }
-
-            public string Hub { get; private set; }
         }
     }
 }

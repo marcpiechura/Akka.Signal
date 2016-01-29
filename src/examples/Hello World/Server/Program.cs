@@ -11,12 +11,12 @@ namespace Server
         {
             using (var sys = ActorSystem.Create("Server"))
             {
-                sys.SignalHub().Tell(new HubManager.Bind(5678));
+                sys.SignalHub().Tell(new Signal.Bind(5678));
 
                 var producer = sys.ActorOf(Props.Create(() => new Producer()));
-                sys.SignalHub().Tell(new HubManager.StartHub("Test"), producer);
+                sys.SignalHub().Tell(new Signal.StartHub("Test"), producer);
 
-                sys.AwaitTermination();
+                sys.WhenTerminated.Wait();
             }
         }
     }
@@ -24,14 +24,13 @@ namespace Server
 
     class Producer : ReceiveActor
     {
-        private int _counter;
         private IActorRef _hub;
 
         public Producer()
         {
             Context.System.Scheduler.ScheduleTellRepeatedly(1000, 1000, Self, "", Nobody.Instance);
 
-            Receive<HubManager.HubStarted>(started => _hub = started.Hub);
+            Receive<Signal.HubStarted>(started => _hub = started.Hub);
             Receive<string>(_ => _hub.Tell(DateTime.Now.ToLongTimeString()));
         }
     }

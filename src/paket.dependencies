@@ -1,4 +1,5 @@
 source https://nuget.org/api/v2
-nuget Akka
 nuget Akka.TestKit.NUnit
 nuget NUnit ~> 2.0
+nuget Newtonsoft.Json ~> 7.0.1
+nuget Akka

@@ -40,7 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Client.cs" />
+    <Compile Include="HubClient.cs" />
+    <Compile Include="Signal.cs" />
     <Compile Include="ClientExtension.cs" />
     <Compile Include="ClientManager.cs" />
     <Compile Include="Hub.cs" />

@@ -31,13 +31,13 @@ namespace Akka.Signal
                     var name = hubPair.Key;
                     var hub = hubPair.Value;
 
-                    hub.Forward(new Hub.Leave(name));
+                    hub.Forward(new Signal.Leave(name));
                 }
 
                 Context.Stop(Self);
             });
 
-            Receive<Hub.Join>(join =>
+            Receive<Signal.Join>(join =>
             {
                 if (_hubs.Contains(join.HubName))
                     return;
@@ -45,7 +45,7 @@ namespace Akka.Signal
                 var hub = _parentContext.Child(join.HubName);
                 if (hub.IsNobody())
                 {
-                    Sender.Tell(WriteObject(new Hub.NotFound(join.HubName)));
+                    Sender.Tell(WriteObject(new Signal.NotFound(join.HubName)));
                     return;
                 }
 
@@ -53,7 +53,7 @@ namespace Akka.Signal
                 hub.Forward(join);
             });
 
-            Receive<Hub.Leave>(leave =>
+            Receive<Signal.Leave>(leave =>
             {
                 if (!_hubs.Contains(leave.HubName))
                     return;
@@ -61,7 +61,7 @@ namespace Akka.Signal
                 var hub = _parentContext.Child(leave.HubName);
                 if (hub.IsNobody())
                 {
-                    Sender.Tell(WriteObject(new Hub.NotFound(leave.HubName)));
+                    Sender.Tell(WriteObject(new Signal.NotFound(leave.HubName)));
                     return;
                 }
 
@@ -69,12 +69,12 @@ namespace Akka.Signal
                 hub.Forward(leave);
             });
 
-            Receive<Hub.Broadcast>(broadcast =>
+            Receive<Signal.Broadcast>(broadcast =>
             {
                 var hub = _parentContext.Child(broadcast.HubName);
                 if (hub.IsNobody())
                 {
-                    Sender.Tell(WriteObject(new Hub.NotFound(broadcast.HubName)));
+                    Sender.Tell(WriteObject(new Signal.NotFound(broadcast.HubName)));
                     return;
                 }
 
