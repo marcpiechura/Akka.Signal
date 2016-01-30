@@ -68,7 +68,7 @@ namespace Akka.Signal
 
                 _log.Info($"Hub {hub.HubName} created");
                 var newHub = Context.ActorOf(Props.Create(() => new Hub(Sender)), hub.HubName);
-                Sender.Tell(new Signal.HubStarted(newHub));
+                Sender.Tell(new Signal.HubStarted(newHub, hub.HubName));
             });
 
             Receive<Tcp.Connected>(connected =>

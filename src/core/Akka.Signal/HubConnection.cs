@@ -78,7 +78,7 @@ namespace Akka.Signal
                     return;
                 }
 
-                hub.Forward(broadcast);
+                hub.Forward(new Signal.ClientBroadcast(Sender.Path.Name, broadcast.Message));
             });
         }
 
