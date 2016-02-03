@@ -37,15 +37,18 @@ namespace Akka.Signal
 
         public class Joined
         {
-            public Joined(string client, string hubName)
+            public Joined(string client, string hubName, bool self = false)
             {
                 Client = client;
                 HubName = hubName;
+                Self = self;
             }
 
             public string Client { get; private set; }
 
             public string HubName { get; private set; }
+
+            public bool Self { get; private set; }
         }
 
         public class NotFound

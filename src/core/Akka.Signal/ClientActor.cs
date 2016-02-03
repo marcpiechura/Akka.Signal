@@ -30,15 +30,11 @@ namespace Akka.Signal
             Receive<Signal.Joined>(
                 joined =>
                 {
-                    if (string.IsNullOrWhiteSpace(_ownId))
-                    {
                         _ownId = joined.Client;
                         log($"Successfully joined {joined.HubName} with clientId {_ownId}, we now receive updates from this hub");
                         OnJoined(_ownId, joined.HubName);
-                    }
-                    else
-                        log($"A new client has joined the hub {joined.HubName} with clientId {joined.Client}");
-                });
+                }, joined => joined.Self);
+            Receive<Signal.Joined>(joined => log($"A new client has joined the hub {joined.HubName} with clientId {joined.Client}"), joined => !joined.Self);
             Receive<Signal.Left>(left => log($"The client {left.Client} hast left the hub {left.Hub}"));
             ReceiveAny(OnReceived);
         }
