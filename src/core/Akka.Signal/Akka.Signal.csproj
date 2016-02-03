@@ -40,6 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClientActor.cs" />
+    <Compile Include="HubActor.cs" />
     <Compile Include="HubClient.cs" />
     <Compile Include="Signal.cs" />
     <Compile Include="ClientExtension.cs" />

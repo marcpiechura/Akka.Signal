@@ -67,6 +67,12 @@ namespace Akka.Signal
                     return true;
                 }
 
+                if (Sender == _handler)
+                {
+                    connection.Tell(WriteObject(new Signal.Broadcast(_hub, message)));
+                    return true;
+                }
+
                 return false;
             };
         }
@@ -108,5 +114,7 @@ namespace Akka.Signal
 
             _handler.Tell(message);
         }
+
+        private static Tcp.Write WriteObject(object value) => Tcp.Write.Create(MessageSeriliazer.Serialize(Context.System, value));
     }
 }

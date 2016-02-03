@@ -82,13 +82,27 @@ namespace Akka.Signal
 
         public class Broadcast
         {
-            public Broadcast(string hubName, object message)
+            public Broadcast(string hubName, object message, string clientId = null)
             {
                 HubName = hubName;
                 Message = message;
+                ClientId = clientId;
             }
 
             public string HubName { get; private set; }
+            public object Message { get; private set; }
+            public string ClientId { get; private set; }
+        }
+
+        public class ClientBroadcast
+        {
+            public ClientBroadcast(string clientId, object message)
+            {
+                Client = clientId;
+                Message = message;
+            }
+
+            public string Client { get; private set; }
             public object Message { get; private set; }
         }
 
@@ -107,12 +121,14 @@ namespace Akka.Signal
 
         public class HubStarted
         {
-            public HubStarted(IActorRef hub)
+            public HubStarted(IActorRef hub, string hubName)
             {
                 Hub = hub;
+                Name = hubName;
             }
 
             public IActorRef Hub { get; private set; }
+            public string Name { get; private set; }
         }
 
         public class HubAlreadyExists
