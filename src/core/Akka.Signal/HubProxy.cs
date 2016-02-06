@@ -4,12 +4,12 @@ using System.Collections.Generic;
 
 namespace Akka.Signal
 {
-    public class Hub : ReceiveActor
+    public class HubProxy : ReceiveActor
     {
         private readonly IActorRef _handler;
         private readonly Dictionary<string, IActorRef> _clientDictionary = new Dictionary<string, IActorRef>();
         
-        public Hub(IActorRef handler)
+        public HubProxy(IActorRef handler)
         {
             _handler = handler;
 
@@ -21,9 +21,10 @@ namespace Akka.Signal
                 if (_clientDictionary.ContainsKey(Sender.Path.Name))
                     return;
 
-                var joined = WriteObject(new Signal.Joined(Sender.Path.Name, Self.Path.Name));
+                var joined = new Signal.Joined(Sender.Path.Name, Self.Path.Name);
+                var joinedSerialized = WriteObject(joined);
                 foreach (var client in _clientDictionary.Values)
-                    client.Tell(joined);
+                    client.Tell(joinedSerialized);
 
                 _handler.Tell(joined);
 

@@ -40,13 +40,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientActor.cs" />
-    <Compile Include="HubActor.cs" />
     <Compile Include="HubClient.cs" />
     <Compile Include="Signal.cs" />
     <Compile Include="ClientExtension.cs" />
     <Compile Include="ClientManager.cs" />
-    <Compile Include="Hub.cs" />
+    <Compile Include="HubProxy.cs" />
     <Compile Include="HubConnection.cs" />
     <Compile Include="HubExtension.cs" />
     <Compile Include="HubManager.cs" />
