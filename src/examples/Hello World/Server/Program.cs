@@ -12,7 +12,7 @@ namespace Server
         {
             using (var sys = ActorSystem.Create("Server"))
             {
-                var myhub = sys.ActorOf(Props.Create(() => new MyHub()));
+                var myhub = sys.ActorOf(Props.Create(() => new Hub()));
 
                 sys.SignalHub().Tell(new Signal.Bind(5678));
                 sys.SignalHub().Tell(new Signal.StartHub("Test"), myhub);
@@ -21,13 +21,24 @@ namespace Server
             }
         }
     }
-    
-    class MyHub : HubActor
+
+    class Hub : ReceiveActor
     {
-        private readonly HashSet<string> _clients = new HashSet<string>();
+        private IActorRef _hub;
+        private HashSet<string> _clients;
         private int i = 0;
 
-        protected override void OnStarted()
+        public Hub()
+        {
+            Receive<Signal.HubStarted>(started =>
+            {
+                _hub = started.Hub;
+                _clients = new HashSet<string>();
+                Become(Started);
+            });
+        }
+
+        private void Started()
         {
             Context.System.Scheduler.ScheduleTellRepeatedly(1000, 1000, Self, "", Nobody.Instance);
 
@@ -37,21 +48,26 @@ namespace Server
                 foreach (var client in _clients)
                     Send(i++, client); //broadcast to single, specific client
             });
+
+            Receive<Signal.Joined>(x => ClientJoined(x.Client));
+            Receive<Signal.Left>(x => ClientLeft(x.Client));
+            Receive<Signal.ClientBroadcast>(x => Received(x.Client, x.Message));
         }
 
-        protected override void OnClientJoined(string clientId)
+        private void ClientJoined(string clientId)
         {
-            Console.WriteLine($"client joined: {clientId}");
-            _clients.Add(clientId);
+            if (_clients.Add(clientId))
+                Console.WriteLine($"Client {clientId} Joined.");
         }
 
-        protected override void OnClientLeft(string clientId)
+        private void ClientLeft(string clientId)
         {
-            Console.WriteLine($"client left: {clientId}");
-            _clients.Remove(clientId);
+            if (_clients.Remove(clientId))
+                Console.WriteLine($"Client {clientId} Left.");
         }
 
-        protected override void OnReceived(string clientId, object message) =>
-            Console.WriteLine($"message from {clientId}: {message?.ToString()}");
+        private void Received(string clientId, object message) => Console.WriteLine($"Message from {clientId}: {message?.ToString()}");
+
+        private void Send(object message, string clientId = null) => _hub.Tell(new Signal.Broadcast(null, message, clientId));
     }
 }
