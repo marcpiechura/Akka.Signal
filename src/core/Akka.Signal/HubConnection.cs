@@ -1,14 +1,14 @@
-﻿using Akka.Actor;
+﻿using System.Collections.Generic;
+using Akka.Actor;
 using Akka.Event;
 using Akka.IO;
-using Akka.Util.Internal.Collections;
 
 namespace Akka.Signal
 {
     public class HubConnection : ReceiveActor
     {
         private readonly IUntypedActorContext _parentContext;
-        private IImmutableMap<string, IActorRef> _hubs = ImmutableTreeMap<string, IActorRef>.Empty;
+        private Dictionary<string, IActorRef> _hubs = new Dictionary<string, IActorRef>();
 
         private readonly ILoggingAdapter _log = Context.GetLogger();
 
@@ -26,7 +26,7 @@ namespace Akka.Signal
             {
                 _log.Info($"Client connection {Self.Path.Name} was closed. Reason: {closed.GetErrorCause()}");
 
-                foreach (var hubPair in _hubs.AllMinToMax)
+                foreach (var hubPair in _hubs)
                 {
                     var name = hubPair.Key;
                     var hub = hubPair.Value;
@@ -39,7 +39,7 @@ namespace Akka.Signal
 
             Receive<Signal.Join>(join =>
             {
-                if (_hubs.Contains(join.HubName))
+                if (_hubs.ContainsKey(join.HubName))
                     return;
 
                 var hub = _parentContext.Child(join.HubName);
@@ -49,13 +49,13 @@ namespace Akka.Signal
                     return;
                 }
 
-                _hubs = _hubs.Add(join.HubName, hub);
+                _hubs.Add(join.HubName, hub);
                 hub.Forward(join);
             });
 
             Receive<Signal.Leave>(leave =>
             {
-                if (!_hubs.Contains(leave.HubName))
+                if (!_hubs.ContainsKey(leave.HubName))
                     return;
 
                 var hub = _parentContext.Child(leave.HubName);
@@ -65,7 +65,7 @@ namespace Akka.Signal
                     return;
                 }
 
-               _hubs = _hubs.Remove(leave.HubName);
+                _hubs.Remove(leave.HubName);
                 hub.Forward(leave);
             });
 
